@@ -1,9 +1,18 @@
 import json
 import tensorflow as tf
 from tensorflow.keras import callbacks
-from src.config import EPOCHS, LEARNING_RATE, MODEL_PATH,TRAIN_DIR,VAL_DIR
+from src.config import IMG_SIZE,BATCH_SIZE,EPOCHS, LEARNING_RATE, MODEL_PATH,TRAIN_DIR,VAL_DIR
 from src.data_pipeline import load_dataset
 from src.model import build_model
+
+class_names = tf.keras.utils.image_dataset_from_directory(
+    TRAIN_DIR,
+    image_size=IMG_SIZE,
+    batch_size=BATCH_SIZE
+).class_names
+
+with open("class_names.json", "w") as f:
+    json.dump(class_names, f)
 
 def get_callbacks():
     return [
@@ -79,11 +88,8 @@ def fine_tune_model(model, train_ds, val_ds):
     return model
 
 def main():
-    train_ds,class_names = load_dataset(TRAIN_DIR)
-    val_ds,_   = load_dataset(VAL_DIR, shuffle=False)
-
-    with open("class_names.json", "w") as f:
-        json.dump(class_names, f)
+    train_ds = load_dataset(TRAIN_DIR)
+    val_ds = load_dataset(VAL_DIR, shuffle=False)
 
     model, history = train_base_model(train_ds, val_ds)
 
@@ -92,7 +98,7 @@ def main():
     else:
         print("Skipping fine-tuning — base model not stable enough")
 
-    model.save(MODEL_PATH)
+    model.save(MODEL_PATH,include_optimizer=False)
     print(f"\nModel saved to {MODEL_PATH}")
 
 

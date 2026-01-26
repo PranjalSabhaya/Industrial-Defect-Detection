@@ -8,7 +8,7 @@ DATA_DIR = BASE_DIR / "data" / "raw" / "NEU-DET"
 TRAIN_DIR = DATA_DIR / "train"
 VAL_DIR   = DATA_DIR / "validation"
 
-MODEL_PATH = BASE_DIR / "models" / "defect_detector_finetuned.keras"
+MODEL_PATH = BASE_DIR / "models" / "defect_detector_finetuned_v1.keras"
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32

@@ -6,7 +6,10 @@ from src.data_pipeline import load_dataset
 from src.config import VAL_DIR,MODEL_PATH
 
 model = tf.keras.models.load_model(MODEL_PATH)
-val_ds,class_names = load_dataset(VAL_DIR, shuffle=False)
+val_ds = load_dataset(VAL_DIR, shuffle=False)
+
+with open("class_names.json", "r") as f:
+    class_names = json.load(f)
 
 y_true, y_pred = [], []
 
