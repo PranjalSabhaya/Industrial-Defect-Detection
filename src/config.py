@@ -1,17 +1,24 @@
-from pathlib import Path
+from src.utils import load_config
 
-# project root = parent of src/
-BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_PATH = "config/local.yaml" 
 
-DATA_DIR = BASE_DIR / "data" / "raw" / "NEU-DET"
+cfg = load_config(CONFIG_PATH)
 
-TRAIN_DIR = DATA_DIR / "train"
-VAL_DIR   = DATA_DIR / "validation"
+# project
+SEED = cfg["project"]["seed"]
 
-MODEL_PATH = BASE_DIR / "models" / "defect_detector_finetuned_v1.keras"
+# data
+TRAIN_DIR = cfg["data"]["train_dir"]
+VAL_DIR = cfg["data"]["val_dir"]
 
-IMG_SIZE = (224, 224)
-BATCH_SIZE = 32
-NUM_CLASSES = 6
-EPOCHS = 10
-LEARNING_RATE = 1e-3
+# model
+IMG_SIZE = tuple(cfg["model"]["img_size"])
+NUM_CLASSES = cfg["model"]["num_classes"]
+MODEL_PATH = cfg["model"]["model_path"]
+
+# training
+BATCH_SIZE = cfg["training"]["batch_size"]
+
+# inference
+CONFIDENCE_THRESHOLD = cfg["inference"]["confidence_threshold"]
+
