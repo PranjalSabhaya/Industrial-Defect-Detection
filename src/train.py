@@ -1,9 +1,11 @@
 import json
 import tensorflow as tf
 from tensorflow.keras import callbacks
+from tensorflow.keras.callbacks import CSVLogger
 
 from src.data_pipeline import load_dataset
 from src.model import build_model
+from src.utils import create_experiment_run
 
 
 def save_class_names(train_dir, img_size, batch_size):
@@ -19,7 +21,10 @@ def save_class_names(train_dir, img_size, batch_size):
     return class_names
 
 
-def get_callbacks(model_path):
+def get_callbacks(model_path, run_dir):
+    """
+    Common callbacks for both training phases.
+    """
     return [
         callbacks.ModelCheckpoint(
             model_path,
@@ -36,11 +41,15 @@ def get_callbacks(model_path):
             factor=0.3,
             patience=2,
             min_lr=1e-6
+        ),
+        CSVLogger(
+            filename=str(run_dir / "metrics.csv"),
+            append=True
         )
     ]
 
 
-def train_base_model(config, train_ds, val_ds):
+def train_base_model(config, train_ds, val_ds, run_dir):
     print("\n===== PHASE 1: BASE MODEL TRAINING =====")
 
     model = build_model(
@@ -60,7 +69,10 @@ def train_base_model(config, train_ds, val_ds):
         train_ds,
         validation_data=val_ds,
         epochs=config["training"]["epochs"],
-        callbacks=get_callbacks(config["model"]["model_path"])
+        callbacks=get_callbacks(
+            config["model"]["model_path"],
+            run_dir
+        )
     )
 
     return model, history
@@ -72,10 +84,10 @@ def should_fine_tune(history, threshold=0.90):
     return best_val_acc >= threshold
 
 
-def fine_tune_model(config, model, train_ds, val_ds):
+def fine_tune_model(config, model, train_ds, val_ds, run_dir):
     print("\n===== PHASE 2: FINE-TUNING =====")
 
-    base_model = model.layers[1]  
+    base_model = model.layers[1]  # EfficientNet backbone
     base_model.trainable = True
 
     fine_tune_at = int(len(base_model.layers) * 0.80)
@@ -95,14 +107,21 @@ def fine_tune_model(config, model, train_ds, val_ds):
         train_ds,
         validation_data=val_ds,
         epochs=config["training"]["epochs"],
-        callbacks=get_callbacks(config["model"]["model_path"])
+        callbacks=get_callbacks(
+            config["model"]["model_path"],
+            run_dir
+        )
     )
 
     return model
 
 
-def train_model(config: dict):
-    # Extract config
+def train_model(config: dict, config_path: str):
+    # ---- create experiment run ----
+    run_dir = create_experiment_run(config_path)
+    print(f"📁 Experiment run created at: {run_dir}")
+
+    # ---- extract config ----
     train_dir = config["data"]["train_dir"]
     val_dir = config["data"]["val_dir"]
 
@@ -110,10 +129,10 @@ def train_model(config: dict):
     batch_size = config["training"]["batch_size"]
     model_path = config["model"]["model_path"]
 
-    # Save class names once
+    # ---- save class names ----
     save_class_names(train_dir, img_size, batch_size)
 
-    # Load datasets
+    # ---- load datasets ----
     train_ds = load_dataset(
         train_dir,
         img_size=img_size,
@@ -127,15 +146,19 @@ def train_model(config: dict):
         shuffle=False
     )
 
-    # Phase 1
-    model, history = train_base_model(config, train_ds, val_ds)
+    # ---- phase 1 ----
+    model, history = train_base_model(
+        config, train_ds, val_ds, run_dir
+    )
 
-    # Phase 2 (conditional)
+    # ---- phase 2 (conditional) ----
     if should_fine_tune(history):
-        model = fine_tune_model(config, model, train_ds, val_ds)
+        model = fine_tune_model(
+            config, model, train_ds, val_ds, run_dir
+        )
     else:
         print("Skipping fine-tuning — base model not stable enough")
 
-    # Save final model
+    # ---- save final model ----
     model.save(model_path, include_optimizer=False)
-    print(f"\nModel saved to {model_path}")
+    print(f"\n✅ Model saved to {model_path}")
