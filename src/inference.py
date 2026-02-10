@@ -1,54 +1,73 @@
-import json
 import cv2
 import random
 import tensorflow as tf
 import numpy as np
-import glob
 from tensorflow.keras.applications.efficientnet import preprocess_input
-from src.config import MODEL_PATH, IMG_SIZE
 
-SEED = 42
-tf.random.set_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
 
-model = tf.keras.models.load_model(MODEL_PATH)
+def set_seed(seed: int):
+    tf.random.set_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
-def validate_image(img, target_size=IMG_SIZE):
+
+def validate_image(img, target_size):
     if img is None:
         raise ValueError("Invalid image: None")
 
-    # If grayscale → convert to RGB
+    # Grayscale → RGB
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-    # If RGBA → drop alpha channel
+    # RGBA → RGB
     elif img.shape[2] == 4:
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
 
-    # If not RGB even now → reject
     if img.shape[2] != 3:
         raise ValueError("Image must have 3 channels (RGB)")
 
-    # Ensure correct dtype
     if img.dtype != np.uint8:
         img = img.astype(np.uint8)
 
-    # Resize to model input size
     img = cv2.resize(img, target_size)
-
     return img
 
 
-def predict(image_path):
+def predict(config: dict, image_path: str):
+    # ----- config -----
+    seed = config["project"]["seed"]
+    model_path = config["model"]["model_path"]
+    img_size = tuple(config["model"]["img_size"])
+    confidence_threshold = config["inference"]["confidence_threshold"]
+
+    # ----- reproducibility -----
+    set_seed(seed)
+
+    # ----- load model (lazy) -----
+    model = tf.keras.models.load_model(model_path)
+
+    # ----- load + preprocess image -----
     img = cv2.imread(image_path)
-    img = validate_image(img)
-    img = np.array(img)
-    img = preprocess_input(img)
+    img = validate_image(img, img_size)
+
+    img = preprocess_input(img.astype(np.float32))
     img = np.expand_dims(img, axis=0)
 
-    preds = model.predict(img,verbose=0)
+    # ----- prediction -----
+    preds = model.predict(img, verbose=0)
 
     label = int(np.argmax(preds))
     confidence = float(np.max(preds))
-    return label, confidence
+
+    # ----- confidence handling -----
+    if confidence < confidence_threshold:
+        return {
+            "status": "uncertain",
+            "confidence": confidence
+        }
+
+    return {
+        "status": "success",
+        "label": label,
+        "confidence": confidence
+    }

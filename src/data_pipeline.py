@@ -1,17 +1,23 @@
 import tensorflow as tf
-from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
-from src.config import IMG_SIZE, BATCH_SIZE, TRAIN_DIR, VAL_DIR
 
 AUTOTUNE = tf.data.AUTOTUNE
 
-def load_dataset(directory, shuffle=True, cache=True):
+
+def load_dataset(
+    directory: str,
+    img_size: tuple,
+    batch_size: int,
+    shuffle: bool = True,
+    cache: bool = True):
+    
+
     ds = tf.keras.utils.image_dataset_from_directory(
         directory,
-        image_size=IMG_SIZE,
-        batch_size=BATCH_SIZE,
+        image_size=img_size,
+        batch_size=batch_size,
         shuffle=shuffle,
-        label_mode="int"   
+        label_mode="int"
     )
 
     ds = ds.map(
