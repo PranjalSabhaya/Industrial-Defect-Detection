@@ -212,7 +212,6 @@ __pycache__/
 
 
 data/
-app/
 models/
 class_names.json
 training_logs.csv

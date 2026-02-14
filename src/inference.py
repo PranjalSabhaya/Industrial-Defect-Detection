@@ -33,23 +33,22 @@ def validate_image(img, target_size):
     return img
 
 
-def predict(config: dict, image_path: str):
+def predict(model, config: dict, image_array):
+    """
+    Predict using preloaded model.
+    """
+
+    if image_array is None:
+        raise ValueError("No image provided")
+
     # ----- config -----
-    seed = config["project"]["seed"]
-    model_path = config["model"]["model_path"]
     img_size = tuple(config["model"]["img_size"])
     confidence_threshold = config["inference"]["confidence_threshold"]
 
-    # ----- reproducibility -----
-    set_seed(seed)
+    # ----- validate + resize -----
+    img = validate_image(image_array, img_size)
 
-    # ----- load model (lazy) -----
-    model = tf.keras.models.load_model(model_path)
-
-    # ----- load + preprocess image -----
-    img = cv2.imread(image_path)
-    img = validate_image(img, img_size)
-
+    # ----- preprocess -----
     img = preprocess_input(img.astype(np.float32))
     img = np.expand_dims(img, axis=0)
 
@@ -59,7 +58,6 @@ def predict(config: dict, image_path: str):
     label = int(np.argmax(preds))
     confidence = float(np.max(preds))
 
-    # ----- confidence handling -----
     if confidence < confidence_threshold:
         return {
             "status": "uncertain",
