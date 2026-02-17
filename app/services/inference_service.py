@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image
 import io
 from src.inference import predict
+from app.core.logger import logger
 
 
 class InferenceService:
@@ -11,28 +12,57 @@ class InferenceService:
 
     def predict_image(self, image_bytes: bytes):
 
-        if not image_bytes:
-            raise ValueError("Uploaded file is empty")
+        try:
+            # ---- Validate empty file ----
+            if not image_bytes:
+                raise ValueError("Uploaded file is empty")
 
-        # Decode image safely
-        image = Image.open(io.BytesIO(image_bytes))
-        image = image.convert("RGB")
-        img = np.array(image)
+            logger.info("Received prediction request")
 
-        # Call core inference
-        result = predict(
-            model=self.model_loader.get_model(),
-            config=self.model_loader.get_config(),
-            image_array=img
-        )
+            # ---- Decode safely using PIL ----
+            image = Image.open(io.BytesIO(image_bytes))
+            image = image.convert("RGB")
+            img = np.array(image)
 
-        if result["status"] == "success":
-            class_names = self.model_loader.get_class_names()
+            # ---- Validate image resolution ----
+            if img.shape[0] < 50 or img.shape[1] < 50:
+                raise ValueError("Image resolution too small")
 
-            result = {
-                "status": "success",
-                "predicted_class": class_names[result["label"]],
-                "confidence": result["confidence"]
-            }
+            # ---- Call core inference ----
+            result = predict(
+                model=self.model_loader.get_model(),
+                config=self.model_loader.get_config(),
+                image_array=img
+            )
 
-        return result
+            # ---- Handle success case ----
+            if result["status"] == "success":
+                class_names = self.model_loader.get_class_names()
+
+                predicted_class = class_names[result["label"]]
+                confidence = result["confidence"]
+
+                logger.info(
+                    f"Prediction successful | "
+                    f"Class: {predicted_class} | "
+                    f"Confidence: {confidence:.6f}"
+                )
+
+                return {
+                    "status": "success",
+                    "predicted_class": predicted_class,
+                    "confidence": confidence
+                }
+
+            # ---- Handle uncertain case ----
+            else:
+                logger.warning(
+                    f"Prediction uncertain | "
+                    f"Confidence: {result.get('confidence')}"
+                )
+
+                return result
+
+        except Exception as e:
+            logger.error(f"Inference failed: {str(e)}")
+            raise
