@@ -3,20 +3,20 @@ project:
   seed: 42
 
 data:
-  train_dir: /mnt/data/train
-  val_dir: /mnt/data/val
+  train_dir: data/raw/NEU-DET/train
+  val_dir: data/raw/NEU-DET/validation
 
 model:
   backbone: efficientnet_b0
   img_size: [224, 224]
   num_classes: 7
-  model_path: /models/defect_detector_finetuned_v1.keras
+  model_path: models/defect_detector_finetuned_v2.keras
 
 training:
   batch_size: 32
-  epochs: 15
-  learning_rate: 0.0005
+  epochs: 10
+  learning_rate: 0.001
   fine_tune_learning_rate: 0.00001
 
 inference:
-  confidence_threshold: 0.95
+  confidence_threshold: 0.6

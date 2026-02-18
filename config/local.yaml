@@ -9,8 +9,8 @@ data:
 model:
   backbone: efficientnet_b0
   img_size: [224, 224]
-  num_classes: 6
-  model_path: models/defect_detector_finetuned_v1.keras
+  num_classes: 7
+  model_path: models/defect_detector_finetuned_v2.keras
 
 training:
   batch_size: 32
@@ -19,4 +19,4 @@ training:
   fine_tune_learning_rate: 0.00001
 
 inference:
-  confidence_threshold: 0.6
+  confidence_threshold: 0.95
