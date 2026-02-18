@@ -320,6 +320,7 @@ body::before {
 }
 .glitch-label.defect { color:var(--red); }
 .glitch-label.ok     { color:var(--green); }
+.glitch-label.invalid { color:#ff9933; }
 .glitch-label::before, .glitch-label::after {
     content: attr(data-text);
     position:absolute; top:0; left:0; right:0;
@@ -338,6 +339,11 @@ body::before {
     animation: glitch-a 4s steps(1) infinite;
 }
 .glitch-label.ok::after { display:none; }
+.glitch-label.invalid::before {
+    color:#ff9933; text-shadow:2px 0 rgba(255,153,51,0.5);
+    animation: glitch-a 3s steps(1) infinite;
+}
+.glitch-label.invalid::after { display:none; }
 
 @keyframes glitch-a {
     0%,90%,100%{ clip:rect(0,9999px,0,0); transform:translate(0); }
@@ -374,6 +380,10 @@ body::before {
 .conf-fill.ok {
     background: linear-gradient(90deg, #00aa66, var(--green));
     box-shadow: 0 0 12px rgba(0,255,170,0.5);
+}
+.conf-fill.invalid {
+    background: linear-gradient(90deg, #cc7700, #ff9933);
+    box-shadow: 0 0 12px rgba(255,153,51,0.5);
 }
 .conf-fill::after {
     content:''; position:absolute; top:0; right:0; bottom:0; width:40px;
@@ -423,7 +433,7 @@ body::before {
 .scan-status span { animation:blink-char .8s step-end infinite; }
 @keyframes blink-char { 0%,100%{ opacity:1; } 50%{ opacity:0; } }
 
-/* Uncertain badge */
+/* Status badges */
 .uncertain-badge {
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,180,0,0.07);
@@ -431,6 +441,16 @@ body::before {
     border-radius:8px; padding:8px 14px;
     font-family:var(--mono); font-size:10px;
     color:rgba(255,180,0,0.75);
+    letter-spacing:2px; text-transform:uppercase;
+    margin-bottom:1rem; animation: panel-in .5s ease both;
+}
+.invalid-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,100,0,0.07);
+    border:1px solid rgba(255,100,0,0.25);
+    border-radius:8px; padding:8px 14px;
+    font-family:var(--mono); font-size:10px;
+    color:rgba(255,120,50,0.9);
     letter-spacing:2px; text-transform:uppercase;
     margin-bottom:1rem; animation: panel-in .5s ease both;
 }
@@ -454,8 +474,9 @@ body::before {
     to  { opacity:1; transform:translateX(0); }
 }
 .hist-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.hist-dot.defect { background:var(--red); box-shadow:0 0 7px var(--red); }
-.hist-dot.ok     { background:var(--green); box-shadow:0 0 7px var(--green); }
+.hist-dot.defect  { background:var(--red);   box-shadow:0 0 7px var(--red); }
+.hist-dot.ok      { background:var(--green); box-shadow:0 0 7px var(--green); }
+.hist-dot.invalid { background:#ff9933;      box-shadow:0 0 7px #ff9933; }
 .hist-text { font-family:var(--mono); font-size:10px; color:rgba(255,255,255,0.45); flex:1; }
 .hist-conf { font-family:var(--mono); font-size:10px; color:rgba(255,255,255,0.22); }
 
@@ -489,6 +510,13 @@ hr { border:none !important; border-top:1px solid var(--border) !important; marg
 # ─────────────────────── Session state ───────────────────────
 if "history"    not in st.session_state: st.session_state.history    = []
 if "scan_count" not in st.session_state: st.session_state.scan_count = 0
+
+def fmt_class(name: str) -> str:
+    """Convert 'rolled-in_scale' → 'Rolled-In Scale', 'pitted_surface' → 'Pitted Surface'"""
+    return " ".join(
+        word.capitalize()
+        for word in name.replace("-", " - ").replace("_", " ").split()
+    ).replace(" - ", "-")
 
 # ─────────────────────────── Header ───────────────────────────
 now = datetime.now().strftime("%Y.%m.%d  %H:%M")
@@ -597,37 +625,66 @@ with col2:
                 if response.status_code == 200:
                     result      = response.json()
                     confidence  = result.get("confidence", 0)
-                    pred_class  = result.get("predicted_class", "UNKNOWN")
-                    is_defect   = (result.get("status") == "success"
-                                   and "defect" in pred_class.lower())
-                    cls         = "defect" if is_defect else "ok"
-                    conf_pct    = int(confidence * 100)
+                    pred_class     = result.get("predicted_class", "UNKNOWN")
+                    pred_class_fmt = fmt_class(pred_class)
+                    status_code = result.get("status", "uncertain")
+
+                    # ── Determine visual class based on status ──
+                    if status_code == "success":
+                        is_defect = "defect" in pred_class.lower()
+                        cls       = "defect" if is_defect else "ok"
+                        icon      = "⛔" if is_defect else "✅"
+                        hist_type = cls
+                    elif status_code == "invalid_input":
+                        cls       = "invalid"
+                        icon      = "⚠"
+                        hist_type = "invalid"
+                    else:
+                        cls       = "defect"   # neutral colour for uncertain
+                        icon      = "?"
+                        hist_type = "defect"
+
+                    conf_pct = int(confidence * 100)
 
                     st.session_state.history.insert(0, {
-                        "class": pred_class, "confidence": confidence,
-                        "type": cls, "time": datetime.now().strftime("%H:%M:%S")
+                        "class": pred_class_fmt, "confidence": confidence,
+                        "type": hist_type, "time": datetime.now().strftime("%H:%M:%S")
                     })
                     if len(st.session_state.history) > 6:
                         st.session_state.history.pop()
-
-                    icon = "⛔" if is_defect else "✅"
 
                     # ── Result panel ──
                     st.markdown('<div class="result-panel">', unsafe_allow_html=True)
                     st.markdown('<div class="result-eyebrow">// scan output</div>', unsafe_allow_html=True)
 
-                    if result["status"] == "success":
+                    # ── Three-way branching for status ──
+                    if status_code == "success":
                         st.markdown(f"""
-                        <div class="glitch-label {cls}" data-text="{icon} {pred_class}">{icon} {pred_class}</div>
+                        <div class="glitch-label {cls}" data-text="{icon} {pred_class_fmt}">{icon} {pred_class_fmt}</div>
                         <div class="result-sub">Classification · EfficientNet-B4 · threshold 0.85</div>
                         """, unsafe_allow_html=True)
-                    else:
-                        st.markdown("""<div class="uncertain-badge">⚠ LOW CONFIDENCE — MODEL UNCERTAIN</div>""",
-                                    unsafe_allow_html=True)
 
-                    # Confidence bar — pure CSS keyframe, width baked in at render time
-                    # Each render gets a unique animation name so it always re-triggers
-                    anim_name = f"fill_{st.session_state.scan_count}"
+                    elif status_code == "invalid_input":
+                        error_msg = result.get("message", "Input rejected by model")
+                        st.markdown(f"""
+                        <div class="invalid-badge">⛔ INVALID INPUT — {error_msg}</div>
+                        <div class="glitch-label {cls}" data-text="{icon} {pred_class_fmt}">{icon} {pred_class_fmt}</div>
+                        <div class="result-sub">Classification · EfficientNet-B4 · threshold 0.85</div>
+                        """, unsafe_allow_html=True)
+
+                    else:
+                        # uncertain
+                        st.markdown("""
+                        <div class="uncertain-badge">⚠ LOW CONFIDENCE — MODEL UNCERTAIN</div>
+                        """, unsafe_allow_html=True)
+
+                    # ── Confidence bar — unique animation name per scan ──
+                    anim_name  = f"fill_{st.session_state.scan_count}"
+                    conf_color = (
+                        "#ff4422" if status_code == "success" and cls == "defect"
+                        else "#ff9933" if status_code == "invalid_input"
+                        else "#00ffaa"
+                    )
                     st.markdown(f"""
                     <style>
                     @keyframes {anim_name} {{
@@ -648,12 +705,16 @@ with col2:
                         background: linear-gradient(90deg, #00aa66, #00ffaa);
                         box-shadow: 0 0 12px rgba(0,255,170,0.5);
                     }}
+                    .conf-fill-live.invalid {{
+                        background: linear-gradient(90deg, #cc7700, #ff9933);
+                        box-shadow: 0 0 12px rgba(255,153,51,0.5);
+                    }}
                     </style>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                         <span style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;
                               color:rgba(255,255,255,.22);text-transform:uppercase;">Confidence</span>
                         <span style="font-family:'Space Mono',monospace;font-size:28px;font-weight:700;
-                              color:{'#ff4422' if is_defect else '#00ffaa'};">{conf_pct}<span style="font-size:14px;color:rgba(255,255,255,0.35);">%</span></span>
+                              color:{conf_color};">{conf_pct}<span style="font-size:14px;color:rgba(255,255,255,0.35);">%</span></span>
                     </div>
                     <div class="conf-track">
                         <div class="conf-fill-live {cls}"></div>
@@ -663,7 +724,7 @@ with col2:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # Stats row — values rendered directly, no JS needed
+                    # ── Stats row ──
                     st.markdown(f"""
                     <div class="stats-row">
                         <div class="stat-b">

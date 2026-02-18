@@ -38,9 +38,20 @@ class InferenceService:
             # ---- Handle success case ----
             if result["status"] == "success":
                 class_names = self.model_loader.get_class_names()
-
                 predicted_class = class_names[result["label"]]
                 confidence = result["confidence"]
+
+                # ---- HANDLE UNKNOWN CLASS ----
+                if predicted_class.lower() == "unknown":
+                    logger.warning(
+                        f"Non-steel image detected | Confidence: {confidence:.6f}"
+                    )
+
+                    return {
+                        "status": "invalid_input",
+                        "message": "Please upload a steel surface defect image.",
+                        "confidence": confidence
+                    }
 
                 logger.info(
                     f"Prediction successful | "
