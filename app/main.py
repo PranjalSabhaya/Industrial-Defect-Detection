@@ -35,9 +35,28 @@ async def global_exception_handler(request: Request, exc: Exception):
 # -------------------------
 # Health Check
 # -------------------------
-@app.get("/")
+@app.get("/health")
 def health_check():
-    return {"status": "API is running"}
+    try:
+        model = model_loader.get_model()
+        config = model_loader.get_config()
+
+        if model is None or config is None:
+            return {
+                "status": "unhealthy",
+                "details": "Model or config not loaded"
+            }
+
+        return {
+            "status": "healthy",
+            "model_loaded": True
+        }
+
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
 
 
 # -------------------------
