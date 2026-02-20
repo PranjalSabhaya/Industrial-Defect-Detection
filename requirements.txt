@@ -1,0 +1,25 @@
+# Core ML
+tensorflow==2.20.0
+numpy
+pandas
+scikit-learn
+
+# Image processing
+opencv-python-headless
+Pillow
+
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# Frontend
+streamlit
+requests
+
+# Config
+pyyaml
+
+# Utilities
+matplotlib

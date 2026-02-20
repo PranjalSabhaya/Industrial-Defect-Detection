@@ -3,7 +3,7 @@ import requests
 import time
 from datetime import datetime
 
-API_URL = "http://127.0.0.1:8000/predict"
+API_URL = "http://api:8000/predict"
 
 st.set_page_config(
     page_title="DefectScan AI",
@@ -554,7 +554,7 @@ with col1:
             <div class="reticle"></div>
             <div class="img-label">INPUT · SURFACE SCAN</div>
         """, unsafe_allow_html=True)
-        st.image(uploaded_file, use_container_width=True)
+        st.image(uploaded_file, width=700)
         st.markdown("</div>", unsafe_allow_html=True)
 
         # Meta chips
@@ -625,7 +625,7 @@ with col2:
                 if response.status_code == 200:
                     result      = response.json()
                     confidence  = result.get("confidence", 0)
-                    pred_class     = result.get("predicted_class", "UNKNOWN")
+                    pred_class     = result.get("predicted_class") or "UNKNOWN"
                     pred_class_fmt = fmt_class(pred_class)
                     status_code = result.get("status", "uncertain")
 
