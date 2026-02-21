@@ -3,7 +3,7 @@ import requests
 import time
 from datetime import datetime
 
-API_URL = "http://api:8000/predict"
+API_URL = "https://industrial-defect-detection-sp8i.onrender.com/predict"
 
 st.set_page_config(
     page_title="DefectScan AI",

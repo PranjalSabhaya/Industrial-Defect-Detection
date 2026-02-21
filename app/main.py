@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.model_loader import ModelLoader
 from app.services.inference_service import InferenceService
@@ -7,6 +8,14 @@ from app.schemas import PredictionResponse, ErrorResponse
 from app.core.logger import logger
 
 app = FastAPI(title="Industrial Defect Detection API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 model_loader = ModelLoader("config/local.yaml")
 inference_service = InferenceService(model_loader)
