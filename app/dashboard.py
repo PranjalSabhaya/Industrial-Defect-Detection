@@ -616,8 +616,13 @@ with col2:
                 time.sleep(0.22)
 
             try:
+                # Wake up backend
+                try:
+                    requests.get("https://industrial-defect-detection-sp8i.onrender.com/health", timeout=30)
+                except:
+                    pass
                 files    = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                response = requests.post(API_URL, files=files, timeout=15)
+                response = requests.post(API_URL, files=files, timeout=60)
                 scan_time = time.time() - scan_start
                 pb.progress(100)
                 status.empty()
@@ -755,8 +760,8 @@ with col2:
                 pb.empty(); status.empty()
                 st.markdown("""<div class="err-box">
                     <div style="font-size:22px;margin-bottom:8px;">⚡</div>
-                    <div class="err-title">Cannot reach API at 127.0.0.1:8000</div>
-                    <div class="err-sub">Make sure your FastAPI server is running.</div>
+                    <div class="err-title">Cannot reach backend server</div>
+                    <div class="err-sub">Backend may be sleeping (Render cold start).</div>
                 </div>""", unsafe_allow_html=True)
 
             except Exception as e:
