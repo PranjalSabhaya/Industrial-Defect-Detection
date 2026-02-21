@@ -8,12 +8,16 @@ from app.core.logger import logger
 
 app = FastAPI(title="Industrial Defect Detection API")
 
-# ---- Load model at startup ----
 model_loader = ModelLoader("config/local.yaml")
-model_loader.load()
-
 inference_service = InferenceService(model_loader)
 
+
+# ---- Load model AFTER server starts ----
+@app.on_event("startup")
+async def load_model():
+    logger.info("Loading ML model...")
+    model_loader.load()
+    logger.info("Model loaded successfully!")
 
 # -------------------------
 # Global Exception Handler
